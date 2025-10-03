@@ -1,9 +1,13 @@
-# IMPORTANT: press c when prompted (Pdb) from the CMD line
-# [180DA, Lab 1] this code
-# finds a distribution of colors inside an image
-# using the k-means algorithm.
-# the output is a histogram detailing the
-# ratio of the colors present in the image
+# [180DA, Lab 1] 
+#Reference
+#Github User: aysebilgegunduz
+#Uses: "find_histogram" from kmeans.py given in the lab manual
+#url: https://code.likeagirl.io/finding-dominant-colour-on-an-image-b4e075f98097
+
+#Improvements:
+# -live camera tracking 
+# - desginated central rectangle (instead of whole frame)
+# - check if camera available
 
 
 import cv2
@@ -12,6 +16,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import pdb 
 
+#-----From Given Example Code (kmeans.py)---------------------------------
 def find_histogram(clt):
     """
     create a histogram with k clusters
@@ -25,32 +30,55 @@ def find_histogram(clt):
     hist /= hist.sum()
 
     return hist
-def plot_colors2(hist, centroids):
-    bar = np.zeros((50, 300, 3), dtype="uint8")
-    startX = 0
+#---------------------------------------------------------
 
 
+def main():
+    video_capture = cv2.VideoCapture(0)
+    if not video_capture.isOpened():
+        print("could not find webcam")
+        return
+    
+    roi_rel_w, roi_rel_h = 0.35,0.35
 
-    for (percent, color) in zip(hist, centroids):
-        # plot the relative percentage of each cluster
-        endX = startX + (percent * 300)
-        cv2.rectangle(bar, (int(startX), 0), (int(endX), 50),
-                      color.astype("uint8").tolist(), -1)
-        startX = endX
+    print("Press q to quit")
+    while True:
+        ret, frame = video_capture.read()
+        if not ret:
+            break
 
-    # return the bar chart
-    return bar
+        H, W = frame.shape[:2]
+        rw, rh = int(W * roi_rel_w), int(H * roi_rel_h)
+        x1 = (W - rw) // 2
+        y1 = (H-rh) // 2
+        x2 = x1 + rw
+        y2 = y1 + rh
 
-img = cv2.imread("self.jpg")
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        roi = frame[y1:y2, x1:x2]
 
-img = img.reshape((img.shape[0] * img.shape[1],3)) #represent as row*column,channel number
-clt = KMeans(n_clusters=3) #cluster number
-clt.fit(img)
-pdb.set_trace()
-hist = find_histogram(clt)
-bar = plot_colors2(hist, clt.cluster_centers_)
+        roi_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+        pixels = roi_rgb.reshape((-1,3))
 
-plt.axis("off")
-plt.imshow(bar)
-plt.show()
+        clt = KMeans(n_clusters=3, n_init = "auto", random_state=42)
+        clt.fit(pixels)
+
+
+        hist = find_histogram(clt)
+        centers = clt.cluster_centers_
+        dom_index = int(np.argmax(hist))
+        dominant_rgb = centers[dom_index]
+
+        dr, dg, db = map(int, dominant_rgb)
+        print(f"Dominant RGB in ROI: ({dr}, {dg}, {db})")
+
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255),2)
+        cv2.imshow("Video Feed (Central ROI shown)", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    video_capture.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
+
