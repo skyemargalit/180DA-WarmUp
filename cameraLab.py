@@ -6,7 +6,7 @@
 
 #Improvements:
 # -live camera tracking 
-# - desginated central rectangle (instead of whole frame)
+# - designated central rectangle (instead of whole frame)
 # - check if camera available
 
 
